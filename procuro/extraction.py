@@ -1,7 +1,7 @@
 import os
 import json
 from openai import OpenAI
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 from dotenv import load_dotenv
 from commodity_groups import get_commodity_groups_for_prompt
 
