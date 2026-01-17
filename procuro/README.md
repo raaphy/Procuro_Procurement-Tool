@@ -1,6 +1,6 @@
 # Procuro
 
-Procurement Request Management System for askLio.
+Procurement Request Management System.
 
 ## Features
 
