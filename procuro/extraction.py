@@ -50,20 +50,24 @@ Required JSON structure:
     "department": "string (the department the offer is addressed to)",
     "requestor_name": "string (the person the offer is addressed to, e.g. from salutation like 'Dear Mr. Smith' or 'Sehr geehrter Herr Müller')",
     "title": "string (the offer title if explicitly stated, otherwise generate a concise descriptive title from the order lines, e.g. 'Adobe Software Licenses' or 'Office Furniture Order')",
+    "currency": "string (3-letter currency code like EUR, USD, GBP, CHF - extract from currency symbols € $ £ or explicit mentions)",
     "order_lines": [
         {
             "description": "string",
             "unit_price": number,
             "quantity": number,
-            "unit": "string (The unit of measure or quantity)"
+            "unit": "string (The unit of measure or quantity)",
+            "stated_total_price": number (the total price as stated in the document for this line)
         }
-    ]
+    ],
+    "stated_total_cost": number (the total cost of the entire offer as stated in the document)
 }
 
-If a field cannot be found, use null for strings and empty array for order_lines.
+If a field cannot be found, use null for strings/numbers and empty array for order_lines.
 Extract prices as numbers without currency symbols.
 For requestor_name: Look for salutations, "Attention:", "To:", or similar addressing patterns.
 For title: If no explicit offer title exists, create a short meaningful title summarizing the main items being offered.
+For currency: Default to EUR if not explicitly stated but Euro symbols (€) are used.
 """
 
     messages = [
@@ -71,12 +75,11 @@ For title: If no explicit offer title exists, create a short meaningful title su
         {"role": "user", "content": f"Extract data from this vendor offer:\n\n{text}"}
     ]
     
-    log_openai_request(messages, "gpt-4o-mini")
+    log_openai_request(messages, "gpt-5-mini")
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5-mini",
         messages=messages,
-        temperature=0,
         response_format={"type": "json_object"}
     )
 
@@ -119,12 +122,11 @@ Order Lines:
         {"role": "user", "content": user_content}
     ]
 
-    log_openai_request(messages, "gpt-4o-mini")
+    log_openai_request(messages, "gpt-5-mini")
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-5-mini",
         messages=messages,
-        temperature=0,
         response_format={"type": "json_object"}
     )
 

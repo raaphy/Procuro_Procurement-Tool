@@ -22,6 +22,8 @@ class ProcurementRequest(Base):
     vat_id = Column(String, nullable=False)
     department = Column(String, nullable=False)
     commodity_group_id = Column(String, nullable=False)
+    currency = Column(String, default="EUR")
+    stated_total_cost = Column(Float, nullable=True)  # Total from the offer document
     status = Column(String, default=RequestStatus.OPEN.value)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -30,8 +32,14 @@ class ProcurementRequest(Base):
     status_history = relationship("StatusHistory", back_populates="request", cascade="all, delete-orphan")
 
     @property
-    def total_cost(self) -> float:
+    def calculated_total_cost(self) -> float:
         return sum(line.unit_price * line.quantity for line in self.order_lines)
+    
+    @property
+    def has_total_mismatch(self) -> bool:
+        if self.stated_total_cost is None:
+            return False
+        return abs(self.stated_total_cost - self.calculated_total_cost) > 0.01
 
 
 class OrderLine(Base):
@@ -43,12 +51,19 @@ class OrderLine(Base):
     unit_price = Column(Float, nullable=False)
     quantity = Column(Integer, nullable=False)
     unit = Column(String, nullable=False)
+    stated_total_price = Column(Float, nullable=True)  # Total from the offer document
 
     request = relationship("ProcurementRequest", back_populates="order_lines")
 
     @property
-    def total_price(self) -> float:
+    def calculated_total_price(self) -> float:
         return self.unit_price * self.quantity
+    
+    @property
+    def has_price_mismatch(self) -> bool:
+        if self.stated_total_price is None:
+            return False
+        return abs(self.stated_total_price - self.calculated_total_price) > 0.01
 
 
 class StatusHistory(Base):
