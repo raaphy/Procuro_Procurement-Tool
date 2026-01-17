@@ -4,8 +4,9 @@ from unittest.mock import patch, MagicMock
 
 
 class TestExtractOfferData:
-    @patch('extraction.client')
-    def test_extract_offer_data_parses_valid_json(self, mock_client):
+    @patch('extraction.get_client')
+    def test_extract_offer_data_parses_valid_json(self, mock_get_client):
+        mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices[0].message.content = json.dumps({
             "vendor_name": "Test Vendor",
@@ -26,6 +27,7 @@ class TestExtractOfferData:
             "stated_total_cost": 1500
         })
         mock_client.chat.completions.create.return_value = mock_response
+        mock_get_client.return_value = mock_client
 
         from extraction import extract_offer_data
         result = extract_offer_data("Sample offer text")
@@ -35,11 +37,13 @@ class TestExtractOfferData:
         assert len(result["order_lines"]) == 1
         assert result["order_lines"][0]["unit_price"] == 150
 
-    @patch('extraction.client')
-    def test_extract_offer_data_returns_empty_on_invalid_json(self, mock_client):
+    @patch('extraction.get_client')
+    def test_extract_offer_data_returns_empty_on_invalid_json(self, mock_get_client):
+        mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices[0].message.content = "not valid json"
         mock_client.chat.completions.create.return_value = mock_response
+        mock_get_client.return_value = mock_client
 
         from extraction import extract_offer_data
         result = extract_offer_data("Sample text")
@@ -48,8 +52,9 @@ class TestExtractOfferData:
 
 
 class TestClassifyCommodityGroup:
-    @patch('extraction.client')
-    def test_classify_returns_valid_result(self, mock_client):
+    @patch('extraction.get_client')
+    def test_classify_returns_valid_result(self, mock_get_client):
+        mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices[0].message.content = json.dumps({
             "commodity_group_id": "031",
@@ -57,6 +62,7 @@ class TestClassifyCommodityGroup:
             "rationale": "Software licenses belong to IT Software category"
         })
         mock_client.chat.completions.create.return_value = mock_response
+        mock_get_client.return_value = mock_client
 
         from extraction import classify_commodity_group
         result = classify_commodity_group(
@@ -69,11 +75,13 @@ class TestClassifyCommodityGroup:
         assert result["commodity_group_id"] == "031"
         assert result["confidence"] == 0.95
 
-    @patch('extraction.client')
-    def test_classify_fallback_on_invalid_json(self, mock_client):
+    @patch('extraction.get_client')
+    def test_classify_fallback_on_invalid_json(self, mock_get_client):
+        mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices[0].message.content = "invalid"
         mock_client.chat.completions.create.return_value = mock_response
+        mock_get_client.return_value = mock_client
 
         from extraction import classify_commodity_group
         result = classify_commodity_group(

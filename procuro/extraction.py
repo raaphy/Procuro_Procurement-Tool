@@ -7,7 +7,14 @@ from commodity_groups import get_commodity_groups_for_prompt
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_client = None
+
+
+def get_client():
+    global _client
+    if _client is None:
+        _client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    return _client
 
 
 def log_openai_request(messages: list, model: str):
@@ -77,7 +84,7 @@ For currency: Default to EUR if not explicitly stated but Euro symbols (€) are
     
     log_openai_request(messages, "gpt-5-mini")
 
-    response = client.chat.completions.create(
+    response = get_client().chat.completions.create(
         model="gpt-5-mini",
         messages=messages,
         response_format={"type": "json_object"}
@@ -124,7 +131,7 @@ Order Lines:
 
     log_openai_request(messages, "gpt-5-mini")
 
-    response = client.chat.completions.create(
+    response = get_client().chat.completions.create(
         model="gpt-5-mini",
         messages=messages,
         response_format={"type": "json_object"}
