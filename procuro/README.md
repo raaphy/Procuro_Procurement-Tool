@@ -26,6 +26,9 @@ cp .env.example .env
 
 # Run the application
 streamlit run app.py
+
+# Run tests
+python -m pytest tests/ -v 
 ```
 
 ## Environment Variables

@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum, Text, LargeBinary
 from sqlalchemy.orm import relationship, declarative_base
 import enum
 
@@ -25,6 +25,8 @@ class ProcurementRequest(Base):
     currency = Column(String, default="EUR")
     stated_total_cost = Column(Float, nullable=True)  # Total from the offer document
     status = Column(String, default=RequestStatus.OPEN.value)
+    pdf_data = Column(LargeBinary, nullable=True)  # Stored PDF file
+    pdf_filename = Column(String, nullable=True)  # Original filename
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -49,6 +51,7 @@ class OrderLine(Base):
     request_id = Column(Integer, ForeignKey("procurement_requests.id"), nullable=False)
     description = Column(String, nullable=False)
     unit_price = Column(Float, nullable=False)
+
     quantity = Column(Float, nullable=False)
     unit = Column(String, nullable=False)
     stated_total_price = Column(Float, nullable=True)  # Total from the offer document
