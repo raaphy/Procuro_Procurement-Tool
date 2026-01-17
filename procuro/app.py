@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal, init_db
 from models import ProcurementRequest, OrderLine, StatusHistory, RequestStatus
 from commodity_groups import COMMODITY_GROUPS, get_commodity_group_display
-from extraction import extract_text_from_pdf, extract_offer_data, classify_commodity_group
+from extraction import extract_offer_data_from_pdf, classify_commodity_group
 
 # Initialize database
 init_db()
@@ -66,8 +66,7 @@ def show_new_request_page():
         if st.button("🔍 Extract Data from PDF"):
             with st.spinner("Extracting data..."):
                 try:
-                    text = extract_text_from_pdf(uploaded_file.read())
-                    extracted = extract_offer_data(text)
+                    extracted = extract_offer_data_from_pdf(uploaded_file.read())
                     
                     if extracted:
                         st.session_state.form_data["requestor_name"] = extracted.get("requestor_name", "") or ""

@@ -1,5 +1,7 @@
 import os
+import io
 import json
+import base64
 from openai import OpenAI
 from pypdf import PdfReader
 from dotenv import load_dotenv
@@ -9,12 +11,32 @@ load_dotenv()
 
 _client = None
 
+# Toggle für Vision-Modus (True = GPT-4o mit Bildern, False = nur Text)
+USE_VISION = os.getenv("USE_VISION", "true").lower() == "true"
+
 
 def get_client():
     global _client
     if _client is None:
         _client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     return _client
+
+
+def pdf_to_images_base64(file_bytes: bytes) -> list[str]:
+    """Konvertiert PDF-Seiten zu Base64-codierten PNG-Bildern."""
+    try:
+        import pymupdf
+    except ImportError:
+        raise ImportError("pymupdf benötigt für Vision-Modus: pip install pymupdf")
+    
+    doc = pymupdf.open(stream=file_bytes, filetype="pdf")
+    images = []
+    for page in doc:
+        pix = page.get_pixmap(dpi=150)
+        img_bytes = pix.tobytes("png")
+        images.append(base64.b64encode(img_bytes).decode("utf-8"))
+    doc.close()
+    return images
 
 
 def log_openai_request(messages: list, model: str):
@@ -37,7 +59,6 @@ def log_openai_response(response):
 
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
-    import io
     reader = PdfReader(io.BytesIO(file_bytes))
     text = ""
     for page in reader.pages:
@@ -45,14 +66,29 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     return text
 
 
-def extract_offer_data(text: str) -> dict:
-    system_prompt = """You are an expert at extracting structured data from vendor offers.
-Extract the following information from the provided text and return it as valid JSON only.
-Do not include any explanation, only the JSON object.
+def extract_offer_data_from_pdf(file_bytes: bytes, use_vision: bool = None) -> dict:
+    """
+    Extrahiert Angebotsdaten aus PDF.
+    
+    Args:
+        file_bytes: PDF als Bytes
+        use_vision: True=Vision+Text, False=nur Text, None=USE_VISION env var
+    """
+    if use_vision is None:
+        use_vision = USE_VISION
+    
+    # Text immer extrahieren (auch für Vision als zusätzlicher Kontext)
+    text = extract_text_from_pdf(file_bytes)
+    
+    if use_vision:
+        images = pdf_to_images_base64(file_bytes)
+        return extract_offer_data_vision(text, images)
+    else:
+        return extract_offer_data(text)
 
-Required JSON structure:
+required_json_structure_offer = """Required JSON structure:
 {
-    "vendor_name": "string (the company or person sending the offer)",
+    "vendor_name": "string (the company or person sending the offer, not the recipient. leave blank if unknown)",
     "vat_id": "string (format: DE followed by 9 digits, e.g., DE123456789)",
     "department": "string (the department the offer is addressed to, not the one creating the offer. Leave blank if unknown)",
     "requestor_name": "string (the person the offer is addressed to, e.g. from salutation like 'Dear Mr. Smith' or 'Sehr geehrter Herr Müller')",
@@ -65,9 +101,9 @@ Required JSON structure:
             "quantity": number,
             "unit": "string (The unit of measure or quantity)",
             "stated_total_price": number (the total price as stated in the document for this line)
-        }
-    ],
-    "stated_total_cost": number (the total cost of the entire offer as stated in the document)
+}
+],
+"stated_total_cost": number (the total cost of the entire offer as stated in the document)
 }
 
 If a field cannot be found, use null for strings/numbers and empty array for order_lines.
@@ -76,6 +112,13 @@ For requestor_name: Look for salutations, "Attention:", "To:", or similar addres
 For title: If no explicit offer title exists, create a short meaningful title summarizing the main items being offered.
 For currency: Default to EUR if not explicitly stated but Euro symbols (€) are used.
 """
+
+def extract_offer_data(text: str) -> dict:
+    system_prompt = """You are an expert at extracting structured data from vendor offers.
+Extract the following information from the provided text and return it as valid JSON only.
+Do not include any explanation, only the JSON object.
+
+""" + required_json_structure_offer
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -143,3 +186,62 @@ Order Lines:
         return json.loads(response.choices[0].message.content)
     except json.JSONDecodeError:
         return {"commodity_group_id": "009", "confidence": 0.0, "rationale": "Classification failed"}
+
+
+def extract_offer_data_vision(text: str, images_base64: list[str]) -> dict:
+    print("Extended extraction ###############################")
+    """
+    Extrahiert Angebotsdaten mit GPT-4o Vision (Text + Bilder).
+    Nutzt extrahierten Text als zusätzlichen Kontext.
+    """
+    system_prompt = """You are an expert at extracting structured data from vendor offers.
+You receive both the document images AND extracted text (which may be incomplete for scanned documents).
+Use BOTH sources to extract accurate information - the images show the actual document layout.
+
+Extract the following information and return it as valid JSON only.
+Do not include any explanation, only the JSON object.
+
+""" + required_json_structure_offer
+
+    # Baue multimodalen Content: Text + alle Bilder
+    user_content = [
+        {
+            "type": "text",
+            "text": f"Extract data from this vendor offer.\n\nExtracted text (may be incomplete):\n{text}\n\nDocument images follow:"
+        }
+    ]
+    
+    for img_b64 in images_base64:
+        user_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/png;base64,{img_b64}",
+                "detail": "high"
+            }
+        })
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content}
+    ]
+
+    print("\n" + "=" * 60)
+    print("🔵 OPENAI VISION REQUEST")
+    print("=" * 60)
+    print(f"Model: gpt-4o")
+    print(f"Images: {len(images_base64)} pages")
+    print(f"Text length: {len(text)} chars")
+    print("=" * 60 + "\n")
+
+    response = get_client().chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        response_format={"type": "json_object"}
+    )
+
+    log_openai_response(response)
+
+    try:
+        return json.loads(response.choices[0].message.content)
+    except json.JSONDecodeError:
+        return {}
