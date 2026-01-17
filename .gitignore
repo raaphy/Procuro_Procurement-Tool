@@ -1,0 +1,8 @@
+challange_files
+check_if_api_key_works.py
+procuro/.venv
+procuro/.env
+procuro/procuro.db
+.DS_Store
+.idea/
+
