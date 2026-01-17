@@ -46,6 +46,8 @@ def show_new_request_page():
     # Initialize session state for form data
     if "form_data" not in st.session_state:
         st.session_state.form_data = {
+            "requestor_name": "",
+            "title": "",
             "vendor_name": "",
             "vat_id": "",
             "department": "",
@@ -63,6 +65,8 @@ def show_new_request_page():
                     extracted = extract_offer_data(text)
                     
                     if extracted:
+                        st.session_state.form_data["requestor_name"] = extracted.get("requestor_name", "") or ""
+                        st.session_state.form_data["title"] = extracted.get("title", "") or ""
                         st.session_state.form_data["vendor_name"] = extracted.get("vendor_name", "") or ""
                         st.session_state.form_data["vat_id"] = extracted.get("vat_id", "") or ""
                         st.session_state.form_data["department"] = extracted.get("department", "") or ""
@@ -93,7 +97,11 @@ def show_new_request_page():
     col1, col2 = st.columns(2)
     
     with col1:
-        requestor_name = st.text_input("Requestor Name *", placeholder="John Doe")
+        requestor_name = st.text_input(
+            "Requestor Name *",
+            value=st.session_state.form_data["requestor_name"],
+            placeholder="John Doe"
+        )
         vendor_name = st.text_input(
             "Vendor Name *",
             value=st.session_state.form_data["vendor_name"],
@@ -106,7 +114,11 @@ def show_new_request_page():
         )
     
     with col2:
-        title = st.text_input("Title / Short Description *", placeholder="Adobe Creative Cloud Subscription")
+        title = st.text_input(
+            "Title / Short Description *",
+            value=st.session_state.form_data["title"],
+            placeholder="Adobe Creative Cloud Subscription"
+        )
         vat_id = st.text_input(
             "VAT ID (USt-IdNr.) *",
             value=st.session_state.form_data["vat_id"],
@@ -278,6 +290,8 @@ def show_new_request_page():
             
             # Reset form
             st.session_state.form_data = {
+                "requestor_name": "",
+                "title": "",
                 "vendor_name": "",
                 "vat_id": "",
                 "department": "",

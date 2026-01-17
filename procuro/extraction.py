@@ -45,21 +45,25 @@ Do not include any explanation, only the JSON object.
 
 Required JSON structure:
 {
-    "vendor_name": "string",
+    "vendor_name": "string (the company or person sending the offer)",
     "vat_id": "string (format: DE followed by 9 digits, e.g., DE123456789)",
-    "department": "string (the department the offer is for)",
+    "department": "string (the department the offer is addressed to)",
+    "requestor_name": "string (the person the offer is addressed to, e.g. from salutation like 'Dear Mr. Smith' or 'Sehr geehrter Herr Müller')",
+    "title": "string (the offer title if explicitly stated, otherwise generate a concise descriptive title from the order lines, e.g. 'Adobe Software Licenses' or 'Office Furniture Order')",
     "order_lines": [
         {
             "description": "string",
             "unit_price": number,
             "quantity": number,
-            "unit": "string"
+            "unit": "string (The unit of measure or quantity)"
         }
     ]
 }
 
 If a field cannot be found, use null for strings and empty array for order_lines.
 Extract prices as numbers without currency symbols.
+For requestor_name: Look for salutations, "Attention:", "To:", or similar addressing patterns.
+For title: If no explicit offer title exists, create a short meaningful title summarizing the main items being offered.
 """
 
     messages = [
