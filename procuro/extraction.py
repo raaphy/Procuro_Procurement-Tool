@@ -54,7 +54,7 @@ Required JSON structure:
 {
     "vendor_name": "string (the company or person sending the offer)",
     "vat_id": "string (format: DE followed by 9 digits, e.g., DE123456789)",
-    "department": "string (the department the offer is addressed to)",
+    "department": "string (the department the offer is addressed to, not the one creating the offer. Leave blank if unknown)",
     "requestor_name": "string (the person the offer is addressed to, e.g. from salutation like 'Dear Mr. Smith' or 'Sehr geehrter Herr Müller')",
     "title": "string (the offer title if explicitly stated, otherwise generate a concise descriptive title from the order lines, e.g. 'Adobe Software Licenses' or 'Office Furniture Order')",
     "currency": "string (3-letter currency code like EUR, USD, GBP, CHF - extract from currency symbols € $ £ or explicit mentions)",

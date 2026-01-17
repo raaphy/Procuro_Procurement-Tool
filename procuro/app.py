@@ -52,7 +52,7 @@ def show_new_request_page():
             "vat_id": "",
             "department": "",
             "currency": "EUR",
-            "order_lines": [{"description": "", "unit_price": 0.0, "quantity": 1, "unit": "pieces", "stated_total_price": None}],
+            "order_lines": [{"description": "", "unit_price": 0.0, "quantity": 1.0, "unit": "pieces", "stated_total_price": None}],
             "stated_total_cost": None,
             "commodity_group_id": None,
             "classification_result": None
@@ -86,7 +86,7 @@ def show_new_request_page():
                                 {
                                     "description": line.get("description", ""),
                                     "unit_price": float(line.get("unit_price", 0) or 0),
-                                    "quantity": int(line.get("quantity", 1) or 1),
+                                    "quantity": float(line.get("quantity", 1) or 1),
                                     "unit": line.get("unit", "pieces") or "pieces",
                                     "stated_total_price": line.get("stated_total_price")
                                 }
@@ -173,8 +173,9 @@ def show_new_request_page():
         with col3:
             order_lines[i]["quantity"] = st.number_input(
                 "Qty",
-                value=int(line["quantity"]),
-                min_value=1,
+                value=float(line["quantity"]),
+                min_value=0.01,
+                step=0.01,
                 key=f"qty_{ec}_{i}"
             )
         with col4:
@@ -217,7 +218,7 @@ def show_new_request_page():
     col1, col2 = st.columns([1, 5])
     with col1:
         if st.button("➕ Add Line"):
-            order_lines.append({"description": "", "unit_price": 0.0, "quantity": 1, "unit": "pieces", "stated_total_price": None})
+            order_lines.append({"description": "", "unit_price": 0.0, "quantity": 1.0, "unit": "pieces", "stated_total_price": None})
             st.rerun()
 
     st.divider()
@@ -361,7 +362,7 @@ def show_new_request_page():
                 "vat_id": "",
                 "department": "",
                 "currency": "EUR",
-                "order_lines": [{"description": "", "unit_price": 0.0, "quantity": 1, "unit": "pieces", "stated_total_price": None}],
+                "order_lines": [{"description": "", "unit_price": 0.0, "quantity": 1.0, "unit": "pieces", "stated_total_price": None}],
                 "stated_total_cost": None,
                 "commodity_group_id": None,
                 "classification_result": None

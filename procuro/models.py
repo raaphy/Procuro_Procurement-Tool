@@ -49,7 +49,7 @@ class OrderLine(Base):
     request_id = Column(Integer, ForeignKey("procurement_requests.id"), nullable=False)
     description = Column(String, nullable=False)
     unit_price = Column(Float, nullable=False)
-    quantity = Column(Integer, nullable=False)
+    quantity = Column(Float, nullable=False)
     unit = Column(String, nullable=False)
     stated_total_price = Column(Float, nullable=True)  # Total from the offer document
 
