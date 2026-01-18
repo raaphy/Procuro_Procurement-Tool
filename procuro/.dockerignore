@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.local
+procuro.db
+*.db
+.git/
+.gitignore
+.idea/
+*.md
+tests/
+.pytest_cache/
