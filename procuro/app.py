@@ -16,20 +16,41 @@ def get_db():
     return SessionLocal()
 
 
-def show_pdf_preview(pdf_data: bytes, filename: str = "document.pdf"):
-    """Display PDF in an iframe preview"""
-    base64_pdf = base64.b64encode(pdf_data).decode('utf-8')
-    pdf_display = f'''
-        <iframe 
-            src="data:application/pdf;base64,{base64_pdf}" 
-            width="100%" 
-            height="500px" 
-            type="application/pdf"
-            style="border: 1px solid #ccc; border-radius: 4px;">
-        </iframe>
-    '''
+def show_pdf_preview(pdf_data: bytes, filename: str = "document.pdf", key_prefix: str = "pdf"):
+    """Display PDF with download button and optional embedded preview"""
     st.markdown(f"**📄 {filename}**")
-    st.markdown(pdf_display, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        st.download_button(
+            label="⬇️ Download PDF",
+            data=pdf_data,
+            file_name=filename,
+            mime="application/pdf",
+            key=f"{key_prefix}_download_{filename}"
+        )
+    
+    preview_key = f"{key_prefix}_show_preview_{filename}"
+    if preview_key not in st.session_state:
+        st.session_state[preview_key] = False
+    
+    with col2:
+        if st.button("👁️ Show Preview" if not st.session_state[preview_key] else "🙈 Hide Preview", key=f"{key_prefix}_toggle_{filename}"):
+            st.session_state[preview_key] = not st.session_state[preview_key]
+            st.rerun()
+    
+    if st.session_state[preview_key]:
+        base64_pdf = base64.b64encode(pdf_data).decode('utf-8')
+        pdf_display = f'''
+            <iframe 
+                src="data:application/pdf;base64,{base64_pdf}" 
+                width="100%" 
+                height="500px" 
+                type="application/pdf"
+                style="border: 1px solid #ccc; border-radius: 4px;">
+            </iframe>
+        '''
+        st.markdown(pdf_display, unsafe_allow_html=True)
 
 
 def navigate_to_overview(preserve_filters: bool = True):
@@ -273,13 +294,12 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
 
     # Show PDF preview if available
     if st.session_state.get("pdf_data"):
-        with st.expander("📄 PDF Preview", expanded=False):
-            show_pdf_preview(st.session_state.pdf_data, st.session_state.get("pdf_filename", "document.pdf"))
-            if st.button("🗑️ Remove PDF"):
-                st.session_state.pdf_data = None
-                st.session_state.pdf_filename = None
-                st.session_state.last_uploaded_file = None
-                st.rerun()
+        show_pdf_preview(st.session_state.pdf_data, st.session_state.get("pdf_filename", "document.pdf"), key_prefix="form")
+        if st.button("🗑️ Remove PDF", key="form_remove_pdf"):
+            st.session_state.pdf_data = None
+            st.session_state.pdf_filename = None
+            st.session_state.last_uploaded_file = None
+            st.rerun()
 
     st.divider()
 
@@ -732,8 +752,7 @@ def show_overview_page():
 
             # PDF Preview
             if req.pdf_data:
-                with st.expander("📄 View Attached PDF"):
-                    show_pdf_preview(req.pdf_data, req.pdf_filename or "document.pdf")
+                show_pdf_preview(req.pdf_data, req.pdf_filename or "document.pdf", key_prefix=f"req_{req.id}")
 
             st.divider()
 
