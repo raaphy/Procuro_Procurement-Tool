@@ -18,12 +18,10 @@ def show_overview_page():
         status_filter = st.selectbox(
             "Filter by Status",
             status_options,
-            index=status_options.index(st.session_state.overview_status_filter)
+            key="overview_status_filter"
         )
-        st.session_state.overview_status_filter = status_filter
     with col2:
-        search = st.text_input("Search (vendor/title)", value=st.session_state.overview_search, placeholder="Search...")
-        st.session_state.overview_search = search
+        search = st.text_input("Search (vendor/title)", placeholder="Search...", key="overview_search")
     with col3:
         st.write("")
         if st.button("🔄 Refresh"):
@@ -32,13 +30,14 @@ def show_overview_page():
     # Query requests
     query = db.query(ProcurementRequest)
 
-    if status_filter != "All":
-        query = query.filter(ProcurementRequest.status == status_filter)
+    if st.session_state.overview_status_filter != "All":
+        query = query.filter(ProcurementRequest.status == st.session_state.overview_status_filter)
 
-    if search:
+    if st.session_state.overview_search:
+        search_term = st.session_state.overview_search
         query = query.filter(
-            (ProcurementRequest.vendor_name.ilike(f"%{search}%")) |
-            (ProcurementRequest.title.ilike(f"%{search}%"))
+            (ProcurementRequest.vendor_name.ilike(f"%{search_term}%")) |
+            (ProcurementRequest.title.ilike(f"%{search_term}%"))
         )
 
     requests = query.order_by(ProcurementRequest.created_at.desc()).all()

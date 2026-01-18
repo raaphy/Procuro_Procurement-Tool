@@ -1,5 +1,5 @@
 import streamlit as st
-from state import AppPage, navigate, get_db
+from state import AppPage, navigate, get_db, reset_form
 from database.models import ProcurementRequest, OrderLine, StatusHistory, RequestStatus
 from views.pdf_helper import show_pdf_preview
 from database.commodity_groups import COMMODITY_GROUPS, get_commodity_group_display
@@ -12,36 +12,45 @@ def show_new_request_page():
 
 
 def show_request_form(edit_mode: bool, edit_request_id: int | None):
+    # Form key for resetting all widgets
+    if "form_key" not in st.session_state:
+        st.session_state.form_key = 0
+    fk = st.session_state.form_key
+    
     # File upload section
     st.subheader("📄 Upload Vendor Offer (Optional)")
-    uploaded_file = st.file_uploader(
-        "Upload a PDF to auto-fill the form",
-        type=["pdf"],
-        help="The system will extract vendor information from the uploaded document"
-    )
+    
+    col_upload, col_extract = st.columns([3, 1])
+    
+    with col_upload:
+        uploaded_file = st.file_uploader(
+            "Upload a PDF",
+            type=["pdf"],
+            help="Upload a vendor offer document",
+            key=f"pdf_uploader_{fk}"
+        )
 
-    if "extraction_counter" not in st.session_state:
-        st.session_state.extraction_counter = 0
-
-    if "last_uploaded_file" not in st.session_state:
-        st.session_state.last_uploaded_file = None
-
-    # Auto-extract when a new file is uploaded
+    # Store PDF when uploaded (without extraction)
     if uploaded_file is not None:
         file_id = (uploaded_file.name, uploaded_file.size)
-        print(f"File ID: {file_id}, Last: {st.session_state.last_uploaded_file}")
-        if st.session_state.last_uploaded_file != file_id:
+        if st.session_state.get("last_uploaded_file") != file_id:
             st.session_state.last_uploaded_file = file_id
             pdf_bytes = uploaded_file.read()
-            # Store PDF for preview and saving
             st.session_state.pdf_data = pdf_bytes
             st.session_state.pdf_filename = uploaded_file.name
+            st.session_state.extraction_done = False
+            st.rerun()
 
+    with col_extract:
+        st.write("")  # Spacing
+        extract_disabled = st.session_state.get("pdf_data") is None
+        if st.button("🔍 Extract Info", disabled=extract_disabled, type="primary"):
             with st.spinner("Extracting data from PDF..."):
                 try:
-                    extracted = extract_offer_data_from_pdf(pdf_bytes)
+                    extracted = extract_offer_data_from_pdf(st.session_state.pdf_data)
 
                     if extracted:
+                        st.session_state.form_key += 1
                         st.session_state.form_data["requestor_name"] = extracted.get("requestor_name", "") or ""
                         st.session_state.form_data["title"] = extracted.get("title", "") or ""
                         st.session_state.form_data["vendor_name"] = extracted.get("vendor_name", "") or ""
@@ -51,7 +60,6 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
                         st.session_state.form_data["stated_total_cost"] = extracted.get("stated_total_cost")
 
                         if extracted.get("order_lines"):
-                            st.session_state.extraction_counter += 1
 
                             st.session_state.form_data["order_lines"] = [
                                 {
@@ -76,6 +84,7 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
                             st.session_state.form_data["commodity_group_id"] = result.get("commodity_group_id")
                             st.session_state.form_data["classification_result"] = result
 
+                        st.session_state.extraction_done = True
                         st.success("✅ Data extracted and classified successfully!")
                         st.rerun()
                     else:
@@ -99,36 +108,42 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
         requestor_name = st.text_input(
             "Requestor Name *",
             value=st.session_state.form_data["requestor_name"],
-            placeholder="Max Mustermann"
+            placeholder="Max Mustermann",
+            key=f"requestor_{fk}"
         )
         vendor_name = st.text_input(
             "Vendor Name *",
             value=st.session_state.form_data["vendor_name"],
-            placeholder="Company XYZ"
+            placeholder="Company XYZ",
+            key=f"vendor_{fk}"
         )
         department = st.text_input(
             "Department *",
             value=st.session_state.form_data["department"],
-            placeholder="Department X"
+            placeholder="Department X",
+            key=f"department_{fk}"
         )
 
     with col2:
         title = st.text_input(
             "Title / Short Description *",
             value=st.session_state.form_data["title"],
-            placeholder="Product Name"
+            placeholder="Product Name",
+            key=f"title_{fk}"
         )
         vat_id = st.text_input(
             "VAT ID (USt-IdNr.) *",
             value=st.session_state.form_data["vat_id"],
-            placeholder="DEXXXXXXXXX"
+            placeholder="DEXXXXXXXXX",
+            key=f"vat_id_{fk}"
         )
         col2a, col2b = st.columns(2)
         with col2a:
             currency = st.selectbox(
                 "Currency",
                 options=["EUR", "USD", "GBP", "CHF"],
-                index=["EUR", "USD", "GBP", "CHF"].index(st.session_state.form_data.get("currency", "EUR"))
+                index=["EUR", "USD", "GBP", "CHF"].index(st.session_state.form_data.get("currency", "EUR")),
+                key=f"currency_{fk}"
             )
             st.session_state.form_data["currency"] = currency
         with col2b:
@@ -138,7 +153,8 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
                 status = st.selectbox(
                     "Status",
                     options=status_options,
-                    index=status_options.index(current_status)
+                    index=status_options.index(current_status),
+                    key=f"status_{fk}"
                 )
                 st.session_state.form_data["status"] = status
             else:
@@ -147,7 +163,8 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
                     options=[RequestStatus.OPEN.value],
                     index=0,
                     disabled=True,
-                    help="New requests are always created with status 'Open'"
+                    help="New requests are always created with status 'Open'",
+                    key=f"status_{fk}"
                 )
 
     st.divider()
@@ -158,7 +175,6 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
     order_lines = st.session_state.form_data["order_lines"]
 
     currency_symbol = {"EUR": "€", "USD": "$", "GBP": "£", "CHF": "CHF"}.get(currency, "€")
-    ec = st.session_state.extraction_counter  # Use counter for unique keys after extraction
 
     for i, line in enumerate(order_lines):
         col1, col2, col3, col4, col5, col6, col7 = st.columns([2.5, 1.2, 0.8, 1, 1.2, 1.2, 0.4])
@@ -167,7 +183,7 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
             order_lines[i]["description"] = st.text_input(
                 "Description",
                 value=line["description"],
-                key=f"desc_{ec}_{i}",
+                key=f"desc_{fk}_{i}",
                 placeholder="Some Product description"
             )
         with col2:
@@ -175,7 +191,7 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
                 f"Unit Price ({currency_symbol})",
                 value=float(line["unit_price"]),
                 step=0.01,
-                key=f"price_{ec}_{i}"
+                key=f"price_{fk}_{i}"
             )
         with col3:
             order_lines[i]["quantity"] = st.number_input(
@@ -183,13 +199,13 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
                 value=float(line["quantity"]),
                 min_value=0.01,
                 step=0.01,
-                key=f"qty_{ec}_{i}"
+                key=f"qty_{fk}_{i}"
             )
         with col4:
             order_lines[i]["unit"] = st.text_input(
                 "Unit",
                 value=line["unit"],
-                key=f"unit_{ec}_{i}",
+                key=f"unit_{fk}_{i}",
                 placeholder="piece, kg, ect."
             )
 
@@ -202,7 +218,7 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
                 "Stated Total",
                 value=float(stated_line_total) if stated_line_total is not None else calculated_line_total,
                 step=0.01,
-                key=f"stated_{ec}_{i}"
+                key=f"stated_{fk}_{i}"
             )
 
         with col6:
@@ -219,7 +235,7 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
             st.write("")
             st.write("")
             if len(order_lines) > 1:
-                if st.button("🗑️", key=f"del_{ec}_{i}"):
+                if st.button("🗑️", key=f"del_{fk}_{i}"):
                     order_lines.pop(i)
                     st.rerun()
 
@@ -241,7 +257,8 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
         new_stated_total = st.number_input(
             f"Stated Total Cost ({currency_symbol})",
             value=float(stated_total) if stated_total is not None else calculated_total,
-            step=0.01
+            step=0.01,
+            key=f"stated_total_{fk}"
         )
         st.session_state.form_data["stated_total_cost"] = new_stated_total
 
@@ -304,7 +321,8 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
         selected = st.selectbox(
             "Select commodity group",
             options=options_list,
-            index=current_index
+            index=current_index,
+            key=f"commodity_{fk}"
         )
         if selected:
             st.session_state.form_data["commodity_group_id"] = group_options[selected]
@@ -414,7 +432,8 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
                 db.commit()
                 st.success(f"✅ Request #{request.id} submitted successfully!")
                 st.balloons()
-                navigate(AppPage.OVERVIEW, preserve_filters=False)
+                reset_form()
+                st.rerun()
 
         except Exception as e:
             db.rollback()

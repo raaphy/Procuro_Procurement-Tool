@@ -12,7 +12,9 @@ class AppPage(Enum):
 def init_session_state():
     """Initialize all session state variables"""
     if "current_page" not in st.session_state:
-        st.session_state.current_page = AppPage.NEW_REQUEST.value
+        st.session_state.current_page = None
+    if "last_page" not in st.session_state:
+        st.session_state.last_page = None
     if "edit_request_id" not in st.session_state:
         st.session_state.edit_request_id = None
     if "preserve_filters" not in st.session_state:
@@ -63,6 +65,18 @@ def navigate(page: AppPage, request_id: int = None, preserve_filters: bool = Fal
         st.session_state.overview_search = ""
 
     st.rerun()
+
+
+def reset_form():
+    """Reset form data to empty state - increments form_key to force widget reset"""
+    st.session_state.form_data = get_empty_form_data()
+    st.session_state.pdf_data = None
+    st.session_state.pdf_filename = None
+    st.session_state.last_uploaded_file = None
+    # Increment form_key to force all widgets to reset
+    if "form_key" not in st.session_state:
+        st.session_state.form_key = 0
+    st.session_state.form_key += 1
 
 
 def get_db():
