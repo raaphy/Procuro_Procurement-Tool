@@ -1,15 +1,77 @@
 import streamlit as st
 import base64
+from enum import Enum
 from sqlalchemy.orm import Session
 from database import SessionLocal, init_db
 from models import ProcurementRequest, OrderLine, StatusHistory, RequestStatus
 from commodity_groups import COMMODITY_GROUPS, get_commodity_group_display
 from extraction import extract_offer_data_from_pdf, classify_commodity_group
 
+st.set_page_config(page_title="procuro", page_icon="📋", layout="wide")
+
 # Initialize database
 init_db()
 
-st.set_page_config(page_title="Procuro", page_icon="📋", layout="wide")
+
+class AppPage(Enum):
+    NEW_REQUEST = "new"
+    OVERVIEW = "overview"
+    EDIT_REQUEST = "edit"
+
+
+def init_session_state():
+    """Initialize all session state variables"""
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = AppPage.NEW_REQUEST.value
+    if "edit_request_id" not in st.session_state:
+        st.session_state.edit_request_id = None
+    if "preserve_filters" not in st.session_state:
+        st.session_state.preserve_filters = False
+    if "form_data" not in st.session_state:
+        st.session_state.form_data = get_empty_form_data()
+    if "pdf_data" not in st.session_state:
+        st.session_state.pdf_data = None
+    if "pdf_filename" not in st.session_state:
+        st.session_state.pdf_filename = None
+    if "overview_status_filter" not in st.session_state:
+        st.session_state.overview_status_filter = "All"
+    if "overview_search" not in st.session_state:
+        st.session_state.overview_search = ""
+
+
+def get_empty_form_data():
+    """Return empty form data structure"""
+    return {
+        "requestor_name": "",
+        "title": "",
+        "vendor_name": "",
+        "vat_id": "",
+        "department": "",
+        "currency": "EUR",
+        "status": RequestStatus.OPEN.value,
+        "order_lines": [{"description": "", "unit_price": 0.0, "quantity": 1.0, "unit": "pieces", "stated_total_price": None}],
+        "stated_total_cost": None,
+        "commodity_group_id": None,
+        "classification_result": None
+    }
+
+
+def navigate(page: AppPage, request_id: int = None, preserve_filters: bool = False):
+    """Central navigation function"""
+    st.session_state.current_page = page.value
+    st.session_state.edit_request_id = request_id
+    st.session_state.preserve_filters = preserve_filters
+    
+    if page == AppPage.NEW_REQUEST:
+        st.session_state.form_data = get_empty_form_data()
+        st.session_state.pdf_data = None
+        st.session_state.pdf_filename = None
+        st.session_state.last_uploaded_file = None
+    elif page == AppPage.OVERVIEW and not preserve_filters:
+        st.session_state.overview_status_filter = "All"
+        st.session_state.overview_search = ""
+    
+    st.rerun()
 
 
 def get_db():
@@ -54,29 +116,7 @@ def show_pdf_preview(pdf_data: bytes, filename: str = "document.pdf", key_prefix
         st.markdown(pdf_display, unsafe_allow_html=True)
 
 
-def navigate_to_overview(preserve_filters: bool = True):
-    """Navigate back to overview page"""
-    st.session_state.edit_mode = False
-    st.session_state.edit_request_id = None
-    st.session_state.pdf_data = None
-    st.session_state.pdf_filename = None
-    st.session_state.form_data = {
-        "requestor_name": "",
-        "title": "",
-        "vendor_name": "",
-        "vat_id": "",
-        "department": "",
-        "currency": "EUR",
-        "status": RequestStatus.OPEN.value,
-        "order_lines": [{"description": "", "unit_price": 0.0, "quantity": 1.0, "unit": "pieces", "stated_total_price": None}],
-        "stated_total_cost": None,
-        "commodity_group_id": None,
-        "classification_result": None
-    }
-    if not preserve_filters:
-        st.session_state.overview_status_filter = "All"
-        st.session_state.overview_search = ""
-    st.session_state.navigate_to_overview = True
+
 
 
 def load_request_for_edit(request_id: int):
@@ -85,7 +125,7 @@ def load_request_for_edit(request_id: int):
     try:
         req = db.query(ProcurementRequest).filter(ProcurementRequest.id == request_id).first()
         if req:
-            st.session_state.edit_mode = True
+            st.session_state.current_page = AppPage.EDIT_REQUEST.value
             st.session_state.edit_request_id = request_id
             st.session_state.form_data = {
                 "requestor_name": req.requestor_name,
@@ -122,19 +162,21 @@ def load_request_for_edit(request_id: int):
 
 
 def main():
+    init_session_state()
+    
     st.title("📋 Procuro")
     st.caption("Procurement Request Management System")
 
-    edit_mode = st.session_state.get("edit_mode", False)
-    edit_request_id = st.session_state.get("edit_request_id")
+    current_page = st.session_state.current_page
+    edit_request_id = st.session_state.edit_request_id
     
     # Build navigation options dynamically
-    if edit_mode:
+    if current_page == AppPage.EDIT_REQUEST.value:
         nav_options = ["📝 New Request", "📊 Request Overview", f"✏️ Edit Request #{edit_request_id}"]
-        default_index = 2  # Select Edit page
-    elif st.session_state.get("navigate_to_overview"):
+        default_index = 2
+    elif current_page == AppPage.OVERVIEW.value:
         nav_options = ["📝 New Request", "📊 Request Overview"]
-        default_index = 1  # Select Overview page
+        default_index = 1
     else:
         nav_options = ["📝 New Request", "📊 Request Overview"]
         default_index = 0
@@ -146,55 +188,31 @@ def main():
         index=default_index
     )
 
-    # Handle navigation
-    if page.startswith("✏️ Edit"):
+    # Handle sidebar navigation
+    if page == "📝 New Request" and current_page != AppPage.NEW_REQUEST.value:
+        navigate(AppPage.NEW_REQUEST)
+    elif page == "📊 Request Overview" and current_page != AppPage.OVERVIEW.value:
+        navigate(AppPage.OVERVIEW, preserve_filters=False)
+    elif page.startswith("✏️ Edit"):
         show_edit_request_page()
-    elif page == "📝 New Request":
-        # If switching to New Request while in edit mode, clear edit state
-        if edit_mode:
-            st.session_state.edit_mode = False
-            st.session_state.edit_request_id = None
-            st.session_state.pdf_data = None
-            st.session_state.pdf_filename = None
-            st.session_state.form_data = {
-                "requestor_name": "",
-                "title": "",
-                "vendor_name": "",
-                "vat_id": "",
-                "department": "",
-                "currency": "EUR",
-                "status": RequestStatus.OPEN.value,
-                "order_lines": [{"description": "", "unit_price": 0.0, "quantity": 1.0, "unit": "pieces", "stated_total_price": None}],
-                "stated_total_cost": None,
-                "commodity_group_id": None,
-                "classification_result": None
-            }
-            st.rerun()
+    elif current_page == AppPage.NEW_REQUEST.value:
         show_new_request_page()
-    elif page == "📊 Request Overview":
-        # Check if navigating from edit mode via Cancel/Update (preserve_filters flag)
-        if st.session_state.get("navigate_to_overview"):
-            st.session_state.navigate_to_overview = False
-        elif edit_mode:
-            # User clicked on Overview in sidebar while in edit mode - reset filters
-            st.session_state.overview_status_filter = "All"
-            st.session_state.overview_search = ""
-            st.session_state.edit_mode = False
-            st.session_state.edit_request_id = None
+    elif current_page == AppPage.OVERVIEW.value:
         show_overview_page()
+    elif current_page == AppPage.EDIT_REQUEST.value:
+        show_edit_request_page()
 
 
 def show_edit_request_page():
     """Page for editing an existing request"""
-    edit_request_id = st.session_state.get("edit_request_id")
+    edit_request_id = st.session_state.edit_request_id
     
     col1, col2 = st.columns([6, 1])
     with col1:
         st.header(f"Edit Procurement Request #{edit_request_id}")
     with col2:
         if st.button("❌ Cancel"):
-            navigate_to_overview(preserve_filters=True)
-            st.rerun()
+            navigate(AppPage.OVERVIEW, preserve_filters=True)
     
     show_request_form(edit_mode=True, edit_request_id=edit_request_id)
 
@@ -215,32 +233,16 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
         help="The system will extract vendor information from the uploaded document"
     )
 
-    # Initialize session state for form data
-    if "form_data" not in st.session_state:
-        st.session_state.form_data = {
-            "requestor_name": "",
-            "title": "",
-            "vendor_name": "",
-            "vat_id": "",
-            "department": "",
-            "currency": "EUR",
-            "status": RequestStatus.OPEN.value,
-            "order_lines": [{"description": "", "unit_price": 0.0, "quantity": 1.0, "unit": "pieces", "stated_total_price": None}],
-            "stated_total_cost": None,
-            "commodity_group_id": None,
-            "classification_result": None
-        }
-    
     if "extraction_counter" not in st.session_state:
         st.session_state.extraction_counter = 0
 
-    # Track uploaded file to avoid re-extraction on every rerun
     if "last_uploaded_file" not in st.session_state:
         st.session_state.last_uploaded_file = None
 
     # Auto-extract when a new file is uploaded
     if uploaded_file is not None:
         file_id = (uploaded_file.name, uploaded_file.size)
+        print(f"File ID: {file_id}, Last: {st.session_state.last_uploaded_file}")
         if st.session_state.last_uploaded_file != file_id:
             st.session_state.last_uploaded_file = file_id
             pdf_bytes = uploaded_file.read()
@@ -597,8 +599,7 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
                 
                 db.commit()
                 st.success(f"✅ Request #{request.id} updated successfully!")
-                navigate_to_overview(preserve_filters=True)
-                st.rerun()
+                navigate(AppPage.OVERVIEW, preserve_filters=True)
             else:
                 # Create new request
                 request = ProcurementRequest(
@@ -642,25 +643,7 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
                 db.commit()
                 st.success(f"✅ Request #{request.id} submitted successfully!")
                 st.balloons()
-            
-            # Reset form and edit state
-            st.session_state.form_data = {
-                "requestor_name": "",
-                "title": "",
-                "vendor_name": "",
-                "vat_id": "",
-                "department": "",
-                "currency": "EUR",
-                "order_lines": [{"description": "", "unit_price": 0.0, "quantity": 1.0, "unit": "pieces", "stated_total_price": None}],
-                "stated_total_cost": None,
-                "commodity_group_id": None,
-                "classification_result": None
-            }
-            st.session_state.edit_mode = False
-            st.session_state.edit_request_id = None
-            st.session_state.pdf_data = None
-            st.session_state.pdf_filename = None
-            st.session_state.last_uploaded_file = None
+                navigate(AppPage.OVERVIEW, preserve_filters=False)
             
         except Exception as e:
             db.rollback()
@@ -673,12 +656,6 @@ def show_overview_page():
     st.header("Procurement Requests Overview")
     
     db = get_db()
-    
-    # Initialize filter state if not exists
-    if "overview_status_filter" not in st.session_state:
-        st.session_state.overview_status_filter = "All"
-    if "overview_search" not in st.session_state:
-        st.session_state.overview_search = ""
     
     # Filters
     col1, col2, col3 = st.columns(3)
