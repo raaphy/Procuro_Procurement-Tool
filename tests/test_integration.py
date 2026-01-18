@@ -20,7 +20,7 @@ class TestPdfExtraction:
             pytest.skip("OPENAI_API_KEY not set")
 
     def test_extract_text_from_pdf(self, example_pdf_bytes):
-        from extraction import extract_text_from_pdf
+        from backend.extraction import extract_text_from_pdf
         
         text = extract_text_from_pdf(example_pdf_bytes)
         
@@ -30,7 +30,7 @@ class TestPdfExtraction:
         assert "Cloud Storage" in text
 
     def test_full_extraction_pipeline(self, example_pdf_bytes, skip_without_api_key):
-        from extraction import extract_text_from_pdf, extract_offer_data
+        from backend.extraction import extract_text_from_pdf, extract_offer_data
         
         text = extract_text_from_pdf(example_pdf_bytes)
         result = extract_offer_data(text)
@@ -50,7 +50,7 @@ class TestPdfExtraction:
         assert any("dashboard" in desc or "intelligence" in desc for desc in line_descriptions)
 
     def test_commodity_classification(self, example_pdf_bytes, skip_without_api_key):
-        from extraction import extract_text_from_pdf, extract_offer_data, classify_commodity_group
+        from backend.extraction import extract_text_from_pdf, extract_offer_data, classify_commodity_group
         
         text = extract_text_from_pdf(example_pdf_bytes)
         result = extract_offer_data(text)
