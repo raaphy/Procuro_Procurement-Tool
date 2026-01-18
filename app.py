@@ -1,5 +1,5 @@
 import streamlit as st
-from database import init_db
+from database.database import init_db
 from state import AppPage, init_session_state, navigate
 from views.new_request import show_new_request_page
 from views.overview import show_overview_page

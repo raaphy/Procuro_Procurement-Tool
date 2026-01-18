@@ -1,5 +1,5 @@
 import pytest
-from models import ProcurementRequest, OrderLine, StatusHistory, RequestStatus
+from database.models import ProcurementRequest, OrderLine, RequestStatus
 
 
 class TestOrderLine:

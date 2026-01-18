@@ -5,4 +5,10 @@ procuro/.env
 procuro/procuro.db
 .DS_Store
 .idea/
-
+.venv/
+__pycache__/
+*.pyc
+.env
+*.db
+uploads/
+.streamlit/secrets.toml

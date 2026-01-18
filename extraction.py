@@ -5,7 +5,7 @@ import base64
 from openai import OpenAI
 from pypdf import PdfReader
 from dotenv import load_dotenv
-from commodity_groups import get_commodity_groups_for_prompt
+from database.commodity_groups import get_commodity_groups_for_prompt
 
 load_dotenv()
 

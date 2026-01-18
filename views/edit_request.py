@@ -1,6 +1,6 @@
 import streamlit as st
 from state import AppPage, navigate, get_db
-from models import ProcurementRequest
+from database.models import ProcurementRequest
 from views.new_request import show_request_form
 
 def load_request_for_edit(request_id: int):

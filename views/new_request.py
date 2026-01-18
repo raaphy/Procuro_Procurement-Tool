@@ -1,8 +1,8 @@
 import streamlit as st
-from state import AppPage, navigate, get_db, get_empty_form_data
-from models import ProcurementRequest, OrderLine, StatusHistory, RequestStatus
-from components import show_pdf_preview, validate_request_form
-from commodity_groups import COMMODITY_GROUPS, get_commodity_group_display
+from state import AppPage, navigate, get_db
+from database.models import ProcurementRequest, OrderLine, StatusHistory, RequestStatus
+from views.pdf_helper import show_pdf_preview
+from database.commodity_groups import COMMODITY_GROUPS, get_commodity_group_display
 from extraction import extract_offer_data_from_pdf, classify_commodity_group
 
 def show_new_request_page():
@@ -87,11 +87,6 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
     if st.session_state.get("pdf_data"):
         show_pdf_preview(st.session_state.pdf_data, st.session_state.get("pdf_filename", "document.pdf"),
                          key_prefix="form")
-        if st.button("🗑️ Remove PDF", key="form_remove_pdf"):
-            st.session_state.pdf_data = None
-            st.session_state.pdf_filename = None
-            st.session_state.last_uploaded_file = None
-            st.rerun()
 
     st.divider()
 
@@ -179,7 +174,6 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
             order_lines[i]["unit_price"] = st.number_input(
                 f"Unit Price ({currency_symbol})",
                 value=float(line["unit_price"]),
-                min_value=0.0,
                 step=0.01,
                 key=f"price_{ec}_{i}"
             )
@@ -207,7 +201,6 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
             order_lines[i]["stated_total_price"] = st.number_input(
                 "Stated Total",
                 value=float(stated_line_total) if stated_line_total is not None else calculated_line_total,
-                min_value=0.0,
                 step=0.01,
                 key=f"stated_{ec}_{i}"
             )
@@ -248,7 +241,6 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
         new_stated_total = st.number_input(
             f"Stated Total Cost ({currency_symbol})",
             value=float(stated_total) if stated_total is not None else calculated_total,
-            min_value=0.0,
             step=0.01
         )
         st.session_state.form_data["stated_total_cost"] = new_stated_total
@@ -429,3 +421,24 @@ def show_request_form(edit_mode: bool, edit_request_id: int | None):
             st.error(f"Error saving request: {str(e)}")
         finally:
             db.close()
+
+def validate_request_form(requestor_name, title, vendor_name, vat_id, department, order_lines, commodity_group_id):
+    """Validate form fields and return list of errors"""
+    errors = []
+    if not requestor_name:
+        errors.append("Requestor name is required")
+    if not title:
+        errors.append("Title is required")
+    if not vendor_name:
+        errors.append("Vendor name is required")
+    if not vat_id:
+        errors.append("VAT ID is required")
+    elif not (vat_id.startswith("DE") and len(vat_id) == 11 and vat_id[2:].isdigit()):
+        errors.append("VAT ID must be in format DE followed by 9 digits (e.g., DE123456789)")
+    if not department:
+        errors.append("Department is required")
+    if not any(line["description"] and line["unit_price"] > 0 for line in order_lines):
+        errors.append("At least one complete order line is required")
+    if not commodity_group_id:
+        errors.append("Commodity group must be classified or selected")
+    return errors

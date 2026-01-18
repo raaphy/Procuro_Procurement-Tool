@@ -39,24 +39,3 @@ def show_pdf_preview(pdf_data: bytes, filename: str = "document.pdf", key_prefix
             </iframe>
         '''
         st.markdown(pdf_display, unsafe_allow_html=True)
-
-def validate_request_form(requestor_name, title, vendor_name, vat_id, department, order_lines, commodity_group_id):
-    """Validate form fields and return list of errors"""
-    errors = []
-    if not requestor_name:
-        errors.append("Requestor name is required")
-    if not title:
-        errors.append("Title is required")
-    if not vendor_name:
-        errors.append("Vendor name is required")
-    if not vat_id:
-        errors.append("VAT ID is required")
-    elif not (vat_id.startswith("DE") and len(vat_id) == 11 and vat_id[2:].isdigit()):
-        errors.append("VAT ID must be in format DE followed by 9 digits (e.g., DE123456789)")
-    if not department:
-        errors.append("Department is required")
-    if not any(line["description"] and line["unit_price"] > 0 for line in order_lines):
-        errors.append("At least one complete order line is required")
-    if not commodity_group_id:
-        errors.append("Commodity group must be classified or selected")
-    return errors

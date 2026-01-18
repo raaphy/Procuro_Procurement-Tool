@@ -2,6 +2,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
+from database.models import Base
 
 load_dotenv()
 
@@ -20,5 +21,4 @@ def get_db():
 
 
 def init_db():
-    from models import Base
     Base.metadata.create_all(bind=engine)

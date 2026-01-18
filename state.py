@@ -1,7 +1,7 @@
 from enum import Enum
 import streamlit as st
-from database import SessionLocal
-from models import RequestStatus
+from database.database import SessionLocal
+from database.models import RequestStatus
 
 class AppPage(Enum):
     NEW_REQUEST = "new"
