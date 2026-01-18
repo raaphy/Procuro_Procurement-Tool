@@ -40,6 +40,7 @@ def show_pdf_preview(pdf_data: bytes, filename: str = "document.pdf", key_prefix
             st.rerun()
     
     if st.session_state[preview_key]:
+        # TODO: maybe make pdf cachable
         base64_pdf = base64.b64encode(pdf_data).decode('utf-8')
         pdf_display = f'''
             <iframe 

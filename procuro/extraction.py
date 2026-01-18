@@ -91,7 +91,7 @@ required_json_structure_offer = """Required JSON structure:
     "vendor_name": "string (the company or person sending the offer, not the recipient. leave blank if unknown)",
     "vat_id": "string (format: DE followed by 9 digits, e.g., DE123456789)",
     "department": "string (the department the offer is addressed to, not the one creating the offer. Leave blank if unknown)",
-    "requestor_name": "string (the person the offer is addressed to, e.g. from salutation like 'Dear Mr. Smith' or 'Sehr geehrter Herr Müller')",
+    "requestor_name": "string (the person the offer is addressed to, e.g. from salutation )",
     "title": "string (the offer title if explicitly stated, otherwise generate a concise descriptive title from the order lines, e.g. 'Adobe Software Licenses' or 'Office Furniture Order')",
     "currency": "string (3-letter currency code like EUR, USD, GBP, CHF - extract from currency symbols € $ £ or explicit mentions)",
     "order_lines": [
@@ -225,6 +225,7 @@ Do not include any explanation, only the JSON object.
         {"role": "user", "content": user_content}
     ]
 
+    # TODO: create debugging flag that can be switched off
     print("\n" + "=" * 60)
     print("🔵 OPENAI VISION REQUEST")
     print("=" * 60)
@@ -238,7 +239,7 @@ Do not include any explanation, only the JSON object.
         messages=messages,
         response_format={"type": "json_object"}
     )
-
+    # TODO: create debugging flag that can be switched off
     log_openai_response(response)
 
     try:

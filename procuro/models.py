@@ -27,7 +27,7 @@ class ProcurementRequest(Base):
     status = Column(String, default=RequestStatus.OPEN.value)
     pdf_data = Column(LargeBinary, nullable=True)  # Stored PDF file
     pdf_filename = Column(String, nullable=True)  # Original filename
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow) # TODO deprecated
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     order_lines = relationship("OrderLine", back_populates="request", cascade="all, delete-orphan")
