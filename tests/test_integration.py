@@ -98,7 +98,7 @@ class TestPDFUploadAPI:
 class TestClassificationAPI:
     def test_classification_endpoint(self, client):
         response = client.post(
-            "/api/extraction/classify",
+            "/api/extraction/classify-commodity",
             json={
                 "title": "Software Licenses",
                 "order_lines": [{"description": "Microsoft Office 365"}],
@@ -106,7 +106,7 @@ class TestClassificationAPI:
                 "department": "IT",
             },
         )
-        
+        print(response.json()) 
         assert response.status_code == 200
         data = response.json()
         assert data["commodity_group_id"] == "031"  # Software
