@@ -5,6 +5,8 @@ import type {
   CreateRequestPayload,
   UpdateRequestPayload,
   PdfExtractionResult,
+  ClassificationRequest,
+  ClassificationResponse,
 } from '../types';
 
 const api = axios.create({
@@ -55,8 +57,8 @@ export async function extractPdf(file: File): Promise<PdfExtractionResult> {
   return response.data;
 }
 
-export async function classifyCommodity(description: string): Promise<{ commodity_group_id: string }> {
-  const response = await api.post<{ commodity_group_id: string }>('/classify-commodity', { description });
+export async function classifyCommodity(data: ClassificationRequest): Promise<ClassificationResponse> {
+  const response = await api.post<ClassificationResponse>('/extraction/classify-commodity', data);
   return response.data;
 }
 

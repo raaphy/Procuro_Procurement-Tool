@@ -98,11 +98,15 @@ export default function RequestForm({ editMode, requestId, onSuccess }: RequestF
     if (data.order_lines.length > 0) {
       setOrderLines(data.order_lines);
       
-      const descriptions = data.order_lines.map((l) => l.description).join(', ');
-      if (descriptions.trim()) {
+      if (data.order_lines.length > 0) {
         setClassifying(true);
         try {
-          const result = await classifyCommodity(descriptions);
+          const result = await classifyCommodity({
+            title: data.title || formData.title,
+            order_lines: data.order_lines,
+            vendor_name: data.vendor_name || formData.vendor_name,
+            department: data.department || formData.department,
+          });
           setFormData((prev) => ({ ...prev, commodity_group_id: result.commodity_group_id }));
         } catch (err) {
           console.error('Auto-classification failed:', err);
@@ -114,15 +118,19 @@ export default function RequestForm({ editMode, requestId, onSuccess }: RequestF
   };
 
   const handleAutoClassify = async () => {
-    const descriptions = orderLines.map((l) => l.description).join(', ');
-    if (!descriptions.trim()) {
-      setError('Add order lines with descriptions first');
+    if (orderLines.length === 0) {
+      setError('Add order lines first');
       return;
     }
 
     setClassifying(true);
     try {
-      const result = await classifyCommodity(descriptions);
+      const result = await classifyCommodity({
+        title: formData.title,
+        order_lines: orderLines,
+        vendor_name: formData.vendor_name,
+        department: formData.department,
+      });
       setFormData((prev) => ({ ...prev, commodity_group_id: result.commodity_group_id }));
     } catch (err) {
       setError('Failed to classify commodity');

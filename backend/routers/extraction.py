@@ -31,8 +31,8 @@ async def extract_pdf(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
 
 
-@router.post("/classify", response_model=ClassificationResponse)
-def classify(data: ClassificationRequest):
+@router.post("/classify-commodity", response_model=ClassificationResponse)
+def classify_commodity(data: ClassificationRequest):
     try:
         result = classify_commodity_group(
             title=data.title,

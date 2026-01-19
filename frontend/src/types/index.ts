@@ -67,3 +67,16 @@ export interface CreateRequestPayload {
 }
 
 export interface UpdateRequestPayload extends Partial<CreateRequestPayload> {}
+
+export interface ClassificationRequest {
+  title: string;
+  order_lines: Pick<OrderLine, 'description' | 'unit_price' | 'quantity' | 'unit'>[];
+  vendor_name?: string;
+  department?: string;
+}
+
+export interface ClassificationResponse {
+  commodity_group_id: string;
+  confidence: number;
+  rationale: string;
+}
