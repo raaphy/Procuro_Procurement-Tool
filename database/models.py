@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum, Text, LargeBinary
 from sqlalchemy.orm import relationship, declarative_base
 import enum
@@ -27,8 +27,8 @@ class ProcurementRequest(Base):
     status = Column(String, default=RequestStatus.OPEN.value)
     pdf_data = Column(LargeBinary, nullable=True)  # Stored PDF file
     pdf_filename = Column(String, nullable=True)  # Original filename
-    created_at = Column(DateTime, default=datetime.utcnow) # TODO deprecated
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     order_lines = relationship("OrderLine", back_populates="request", cascade="all, delete-orphan")
     status_history = relationship("StatusHistory", back_populates="request", cascade="all, delete-orphan")
@@ -76,7 +76,7 @@ class StatusHistory(Base):
     request_id = Column(Integer, ForeignKey("procurement_requests.id"), nullable=False)
     from_status = Column(String, nullable=True)
     to_status = Column(String, nullable=False)
-    changed_at = Column(DateTime, default=datetime.utcnow)
+    changed_at = Column(DateTime, default=lambda: datetime.now(UTC))
     changed_by = Column(String, default="system")
 
     request = relationship("ProcurementRequest", back_populates="status_history")

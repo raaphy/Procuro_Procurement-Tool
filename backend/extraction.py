@@ -125,7 +125,7 @@ Do not include any explanation, only the JSON object.
         {"role": "user", "content": f"Extract data from this vendor offer:\n\n{text}"}
     ]
     
-    log_openai_request(messages, "gpt-5-mini")
+    #log_openai_request(messages, "gpt-5-mini")
 
     response = get_client().chat.completions.create(
         model="gpt-5-mini",
@@ -172,7 +172,7 @@ Order Lines:
         {"role": "user", "content": user_content}
     ]
 
-    log_openai_request(messages, "gpt-5-mini")
+    #log_openai_request(messages, "gpt-5-mini")
 
     response = get_client().chat.completions.create(
         model="gpt-5-mini",
@@ -180,7 +180,7 @@ Order Lines:
         response_format={"type": "json_object"}
     )
 
-    log_openai_response(response)
+    #log_openai_response(response)
 
     try:
         return json.loads(response.choices[0].message.content)
@@ -225,22 +225,12 @@ Do not include any explanation, only the JSON object.
         {"role": "user", "content": user_content}
     ]
 
-    # TODO: create debugging flag that can be switched off
-    print("\n" + "=" * 60)
-    print("🔵 OPENAI VISION REQUEST")
-    print("=" * 60)
-    print(f"Model: gpt-4o")
-    print(f"Images: {len(images_base64)} pages")
-    print(f"Text length: {len(text)} chars")
-    print("=" * 60 + "\n")
-
     response = get_client().chat.completions.create(
         model="gpt-4o",
         messages=messages,
         response_format={"type": "json_object"}
     )
-    # TODO: create debugging flag that can be switched off
-    log_openai_response(response)
+    #log_openai_response(response)
 
     try:
         return json.loads(response.choices[0].message.content)

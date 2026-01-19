@@ -1,4 +1,4 @@
-import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -12,7 +12,14 @@ from database.database import init_db
 # Path to built frontend
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 
-app = FastAPI(title="Procuro API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="Procuro API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,11 +32,6 @@ app.add_middleware(
 app.include_router(requests.router)
 app.include_router(extraction.router)
 app.include_router(commodity_groups.router)
-
-
-@app.on_event("startup")
-def on_startup():
-    init_db()
 
 
 @app.get("/api/health")

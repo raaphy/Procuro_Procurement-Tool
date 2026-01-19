@@ -30,7 +30,7 @@ pyarrow==22.0.0
 pydantic==2.12.5
 pydantic_core==2.41.5
 pydeck==0.9.1
-pymupdf==1.25.5
+pymupdf>=1.26.0
 pypdf==5.1.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
@@ -54,8 +54,9 @@ tzdata==2025.3
 urllib3==2.6.3
 
 # FastAPI Backend
-fastapi==0.115.0
-uvicorn[standard]==0.30.0
+fastapi>=0.115.0
+starlette>=0.46.0
+uvicorn[standard]>=0.30.0
 
 # Testing
 pytest==9.0.2
