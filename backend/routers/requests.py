@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.dependencies import get_db
+from database.database import get_db
 from backend.schemas import (
     ProcurementRequestCreate,
     ProcurementRequestUpdate,

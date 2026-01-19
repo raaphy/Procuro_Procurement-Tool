@@ -64,6 +64,22 @@ OPENAI_API_KEY=your-api-key-here
 DATABASE_URL=sqlite:///./procuro.db
 ```
 
+## Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_api_requests.py
+
+# Run with coverage
+pytest --cov=backend --cov=database
+```
+
 ## Project Structure
 
 ```

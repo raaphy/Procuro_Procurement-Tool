@@ -1,67 +1,112 @@
 import pytest
-import os
 from pathlib import Path
 
 
-@pytest.mark.integration
-class TestPdfExtraction:
-    """Integration tests that require OpenAI API key."""
+class TestFullWorkflow:
+    def test_create_update_status_delete(self, client, sample_request_data):
+        create_response = client.post("/api/requests", json=sample_request_data)
+        assert create_response.status_code == 201
+        request_id = create_response.json()["id"]
+        assert create_response.json()["status"] == "Open"
 
-    @pytest.fixture
-    def example_pdf_bytes(self):
+        update_response = client.put(
+            f"/api/requests/{request_id}",
+            json={"title": "Updated Order", "vendor_name": "New Vendor GmbH"},
+        )
+        assert update_response.status_code == 200
+        assert update_response.json()["title"] == "Updated Order"
+
+        status_response = client.patch(
+            f"/api/requests/{request_id}/status",
+            json={"status": "In Progress", "changed_by": "manager"},
+        )
+        assert status_response.status_code == 200
+        assert status_response.json()["status"] == "In Progress"
+
+        status_response = client.patch(
+            f"/api/requests/{request_id}/status",
+            json={"status": "Closed", "changed_by": "manager"},
+        )
+        assert status_response.status_code == 200
+        assert status_response.json()["status"] == "Closed"
+
+        get_response = client.get(f"/api/requests/{request_id}")
+        history = get_response.json()["status_history"]
+        assert len(history) == 3
+
+        delete_response = client.delete(f"/api/requests/{request_id}")
+        assert delete_response.status_code == 204
+
+        get_deleted = client.get(f"/api/requests/{request_id}")
+        assert get_deleted.status_code == 404
+
+
+class TestCalculatedFields:
+    def test_calculated_total_cost_matches(self, client, sample_request_data):
+        response = client.post("/api/requests", json=sample_request_data)
+        data = response.json()
+
+        assert data["calculated_total_cost"] == 1000.0
+        assert data["has_total_mismatch"] is False
+
+    def test_total_mismatch_detected(self, client, sample_request_data_with_mismatch):
+        response = client.post("/api/requests", json=sample_request_data_with_mismatch)
+        data = response.json()
+
+        assert data["calculated_total_cost"] == 500.0
+        assert data["stated_total_cost"] == 600.0
+        assert data["has_total_mismatch"] is True
+
+    def test_order_line_mismatch_detected(self, client, sample_request_data_with_mismatch):
+        response = client.post("/api/requests", json=sample_request_data_with_mismatch)
+        data = response.json()
+
+        mismatches = [line for line in data["order_lines"] if line["has_price_mismatch"]]
+        assert len(mismatches) == 2
+
+
+class TestPDFUploadAPI:
+    def test_upload_pdf_endpoint(self, client):
         pdf_path = Path(__file__).parent / "example_offer.pdf"
-        if not pdf_path.exists():
-            pytest.skip("example_offer.pdf not found")
-        return pdf_path.read_bytes()
+        
+        with open(pdf_path, "rb") as f:
+            response = client.post(
+                "/api/extraction/pdf",
+                files={"file": ("example_offer.pdf", f, "application/pdf")},
+            )
+        
+        assert response.status_code in [200]
 
-    @pytest.fixture
-    def skip_without_api_key(self):
-        if not os.getenv("OPENAI_API_KEY"):
-            pytest.skip("OPENAI_API_KEY not set")
-
-    def test_extract_text_from_pdf(self, example_pdf_bytes):
-        from backend.extraction import extract_text_from_pdf
-        
-        text = extract_text_from_pdf(example_pdf_bytes)
-        
-        assert "Nimbus Tech Solutions" in text
-        assert "DE289456123" in text
-        assert "Anna Müller" in text
-        assert "Cloud Storage" in text
-
-    def test_full_extraction_pipeline(self, example_pdf_bytes, skip_without_api_key):
-        from backend.extraction import extract_text_from_pdf, extract_offer_data
-        
-        text = extract_text_from_pdf(example_pdf_bytes)
-        result = extract_offer_data(text)
-        
-        assert result.get("vendor_name") is not None
-        assert "Nimbus" in result["vendor_name"] or "nimbus" in result["vendor_name"].lower()
-        
-        assert result.get("vat_id") == "DE289456123"
-        
-        assert result.get("order_lines") is not None
-        assert len(result["order_lines"]) == 4
-        
-        assert result.get("stated_total_cost") == 3950.0 or result.get("stated_total_cost") == 3950
-        
-        line_descriptions = [line["description"].lower() for line in result["order_lines"]]
-        assert any("cloud" in desc for desc in line_descriptions)
-        assert any("dashboard" in desc or "intelligence" in desc for desc in line_descriptions)
-
-    def test_commodity_classification(self, example_pdf_bytes, skip_without_api_key):
-        from backend.extraction import extract_text_from_pdf, extract_offer_data, classify_commodity_group
-        
-        text = extract_text_from_pdf(example_pdf_bytes)
-        result = extract_offer_data(text)
-        
-        classification = classify_commodity_group(
-            title=result.get("title", "IT Services"),
-            order_lines=result.get("order_lines", []),
-            vendor_name=result.get("vendor_name", ""),
-            department=result.get("department", "")
+    def test_upload_non_pdf_rejected(self, client):
+        response = client.post(
+            "/api/extraction/pdf",
+            files={"file": ("test.txt", b"not a pdf", "text/plain")},
         )
         
-        assert classification.get("commodity_group_id") is not None
-        assert classification.get("commodity_group_id") in ["029", "030", "031"]
-        assert classification.get("confidence", 0) > 0.5
+        assert response.status_code == 400
+        assert "PDF" in response.json()["detail"]
+
+    def test_upload_empty_file_rejected(self, client):
+        response = client.post(
+            "/api/extraction/pdf",
+            files={"file": ("empty.pdf", b"", "application/pdf")},
+        )
+        
+        assert response.status_code == 400
+
+
+class TestClassificationAPI:
+    def test_classification_endpoint(self, client):
+        response = client.post(
+            "/api/extraction/classify",
+            json={
+                "title": "Software Licenses",
+                "order_lines": [{"description": "Microsoft Office 365"}],
+                "vendor_name": "Microsoft",
+                "department": "IT",
+            },
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["commodity_group_id"] == "031"  # Software

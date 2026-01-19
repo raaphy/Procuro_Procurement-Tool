@@ -1,117 +1,164 @@
 import pytest
-from database.models import ProcurementRequest, OrderLine, RequestStatus
+from database.models import ProcurementRequest, OrderLine, StatusHistory, RequestStatus
 
 
-class TestOrderLine:
-    def test_calculated_total_price(self):
-        line = OrderLine(
-            id=1,
-            request_id=1,
-            description="Test Item",
-            unit_price=100.0,
-            quantity=5,
-            unit="pieces"
-        )
-        assert line.calculated_total_price == 500.0
-
-    def test_has_price_mismatch_when_different(self):
-        line = OrderLine(
-            id=1,
-            request_id=1,
-            description="Test Item",
-            unit_price=100.0,
-            quantity=5,
-            unit="pieces",
-            stated_total_price=600.0
-        )
-        assert line.has_price_mismatch is True
-
-    def test_has_price_mismatch_when_matching(self):
-        line = OrderLine(
-            id=1,
-            request_id=1,
-            description="Test Item",
-            unit_price=100.0,
-            quantity=5,
-            unit="pieces",
-            stated_total_price=500.0
-        )
-        assert line.has_price_mismatch is False
-
-    def test_has_price_mismatch_when_none(self):
-        line = OrderLine(
-            id=1,
-            request_id=1,
-            description="Test Item",
-            unit_price=100.0,
-            quantity=5,
-            unit="pieces",
-            stated_total_price=None
-        )
-        assert line.has_price_mismatch is False
-
-
-class TestProcurementRequest:
-    def create_request_with_lines(self, lines_data, stated_total=None):
+class TestProcurementRequestModel:
+    def test_total_cost_with_mismatch(self, test_db):
         request = ProcurementRequest(
-            id=1,
-            requestor_name="John Doe",
-            title="Test Request",
-            vendor_name="Test Vendor",
+            requestor_name="Test",
+            title="Test Order",
+            vendor_name="Vendor",
             vat_id="DE123456789",
             department="IT",
-            commodity_group_id="031",
-            stated_total_cost=stated_total
+            commodity_group_id="001",
+            stated_total_cost=500.0,
         )
-        request.order_lines = [
-            OrderLine(
-                id=i,
-                request_id=1,
-                description=line["description"],
-                unit_price=line["unit_price"],
-                quantity=line["quantity"],
-                unit="pieces"
-            )
-            for i, line in enumerate(lines_data)
-        ]
-        return request
-
-    def test_calculated_total_cost_single_line(self):
-        request = self.create_request_with_lines([
-            {"description": "Item A", "unit_price": 100.0, "quantity": 2}
-        ])
-        assert request.calculated_total_cost == 200.0
-
-    def test_calculated_total_cost_multiple_lines(self):
-        request = self.create_request_with_lines([
-            {"description": "Item A", "unit_price": 100.0, "quantity": 2},
-            {"description": "Item B", "unit_price": 50.0, "quantity": 3}
-        ])
+        line1 = OrderLine(description="Item 1", unit_price=100.0, quantity=2, unit="pcs")
+        line2 = OrderLine(description="Item 2", unit_price=50.0, quantity=3, unit="pcs")
+        request.order_lines.extend([line1, line2])
+        
+        test_db.add(request)
+        test_db.commit()
+        
         assert request.calculated_total_cost == 350.0
-
-    def test_has_total_mismatch_when_different(self):
-        request = self.create_request_with_lines(
-            [{"description": "Item A", "unit_price": 100.0, "quantity": 2}],
-            stated_total=300.0
-        )
         assert request.has_total_mismatch is True
 
-    def test_has_total_mismatch_when_matching(self):
-        request = self.create_request_with_lines(
-            [{"description": "Item A", "unit_price": 100.0, "quantity": 2}],
-            stated_total=200.0
+    def test_total_cost_without_mismatch(self, test_db):
+        request = ProcurementRequest(
+            requestor_name="Test",
+            title="Test Order",
+            vendor_name="Vendor",
+            vat_id="DE123456789",
+            department="IT",
+            commodity_group_id="001",
+            stated_total_cost=200.0,
         )
+        line = OrderLine(description="Item", unit_price=100.0, quantity=2, unit="pcs")
+        request.order_lines.append(line)
+        
+        test_db.add(request)
+        test_db.commit()
+        
+        assert request.calculated_total_cost == 200.0
         assert request.has_total_mismatch is False
 
-    def test_has_total_mismatch_when_none(self):
-        request = self.create_request_with_lines(
-            [{"description": "Item A", "unit_price": 100.0, "quantity": 2}],
-            stated_total=None
+    def test_total_cost_empty_lines(self, test_db):
+        request = ProcurementRequest(
+            requestor_name="Test",
+            title="Test Order",
+            vendor_name="Vendor",
+            vat_id="DE123456789",
+            department="IT",
+            commodity_group_id="001",
+            stated_total_cost=None,
         )
+        test_db.add(request)
+        test_db.commit()
+        
+        assert request.calculated_total_cost == 0.0
         assert request.has_total_mismatch is False
 
 
-class TestRequestStatus:
+class TestOrderLineModel:
+    def test_line_price_with_mismatch(self, test_db):
+        request = ProcurementRequest(
+            requestor_name="Test",
+            title="Test",
+            vendor_name="Vendor",
+            vat_id="DE123456789",
+            department="IT",
+            commodity_group_id="001",
+        )
+        line = OrderLine(
+            description="Item",
+            unit_price=100.0,
+            quantity=2,
+            unit="pcs",
+            stated_total_price=250.0,
+        )
+        request.order_lines.append(line)
+        
+        test_db.add(request)
+        test_db.commit()
+        
+        assert line.calculated_total_price == 200.0
+        assert line.has_price_mismatch is True
+
+    def test_line_price_without_mismatch(self, test_db):
+        request = ProcurementRequest(
+            requestor_name="Test",
+            title="Test",
+            vendor_name="Vendor",
+            vat_id="DE123456789",
+            department="IT",
+            commodity_group_id="001",
+        )
+        line = OrderLine(
+            description="Item",
+            unit_price=75.50,
+            quantity=4,
+            unit="pcs",
+            stated_total_price=302.0,
+        )
+        request.order_lines.append(line)
+        
+        test_db.add(request)
+        test_db.commit()
+        
+        assert line.calculated_total_price == 302.0
+        assert line.has_price_mismatch is False
+
+    def test_line_price_none_stated(self, test_db):
+        request = ProcurementRequest(
+            requestor_name="Test",
+            title="Test",
+            vendor_name="Vendor",
+            vat_id="DE123456789",
+            department="IT",
+            commodity_group_id="001",
+        )
+        line = OrderLine(
+            description="Item",
+            unit_price=100.0,
+            quantity=2,
+            unit="pcs",
+            stated_total_price=None,
+        )
+        request.order_lines.append(line)
+        
+        test_db.add(request)
+        test_db.commit()
+        
+        assert line.calculated_total_price == 200.0
+        assert line.has_price_mismatch is False
+
+
+class TestStatusHistoryModel:
+    def test_status_history_creation(self, test_db):
+        request = ProcurementRequest(
+            requestor_name="Test",
+            title="Test",
+            vendor_name="Vendor",
+            vat_id="DE123456789",
+            department="IT",
+            commodity_group_id="001",
+        )
+        history = StatusHistory(
+            from_status=None,
+            to_status=RequestStatus.OPEN.value,
+            changed_by="system",
+        )
+        request.status_history.append(history)
+        
+        test_db.add(request)
+        test_db.commit()
+        
+        assert history.id is not None
+        assert history.to_status == "Open"
+        assert history.changed_at is not None
+
+
+class TestRequestStatusEnum:
     def test_status_values(self):
         assert RequestStatus.OPEN.value == "Open"
         assert RequestStatus.IN_PROGRESS.value == "In Progress"
