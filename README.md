@@ -21,7 +21,7 @@ Procurement Request Management System.
 ## Quick Start
 
 ```bash
-# Create virtual environment
+# Create virtual environment (Python 3.14)
 python3 -m venv .venv
 source .venv/bin/activate
 
@@ -80,23 +80,38 @@ pytest tests/test_api_requests.py
 pytest --cov=backend --cov=database
 ```
 
+## Docker
+
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+
+# Or build manually
+docker build -t procuro .
+docker run -p 8000:8000 -e OPENAI_API_KEY=your-key procuro
+```
+
+The app runs at http://localhost:8000 (frontend + API).
+
 ## Project Structure
 
 ```
-procuro/
 ├── backend/               # FastAPI Backend
 │   ├── main.py           # App + CORS + Routers
 │   ├── schemas.py        # Pydantic DTOs
+│   ├── extraction.py     # OpenAI Integration
 │   └── routers/          # API Endpoints
 ├── frontend/              # React Frontend
-│   ├── src/
-│   │   ├── api/          # API Client
-│   │   ├── components/   # React Components
-│   │   ├── pages/        # Route Pages
-│   │   └── types/        # TypeScript Types
+│   └── src/
+│       ├── api/          # API Client
+│       ├── components/   # React Components
+│       ├── pages/        # Route Pages
+│       └── types/        # TypeScript Types
 ├── database/              # SQLAlchemy Models
-├── extraction.py          # OpenAI Integration
-└── start-dev.sh          # Dev startup script
+├── tests/                 # Pytest Tests
+├── Dockerfile             # Production build
+├── docker-compose.yml     # Docker Compose config
+└── start-dev.sh           # Dev startup script
 ```
 
 
