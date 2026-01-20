@@ -189,7 +189,6 @@ Order Lines:
 
 
 def extract_offer_data_vision(text: str, images_base64: list[str]) -> dict:
-    print("Extended extraction ###############################")
     """
     Extrahiert Angebotsdaten mit GPT-4o Vision (Text + Bilder).
     Nutzt extrahierten Text als zusätzlichen Kontext.

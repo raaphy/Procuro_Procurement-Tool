@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+import os
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from database.database import get_db
@@ -155,6 +157,55 @@ def delete_request(request_id: int, db: Session = Depends(get_db)):
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
+    if request.pdf_filename:
+        filepath = f"uploads/{request.pdf_filename}"
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
     db.delete(request)
     db.commit()
     return None
+
+@router.post("/{request_id}/pdf", status_code=200)
+async def upload_pdf(request_id:int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Empty file")
+    request = db.query(ProcurementRequest).filter(ProcurementRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    try:
+        os.makedirs("uploads", exist_ok=True)
+        with open(f"uploads/{request_id}.pdf", "wb") as f:
+            f.write(file_bytes)
+        request.pdf_filename = f"{request_id}.pdf"
+        db.commit()
+        return {"message": "PDF uploaded successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF upload failed: {str(e)}")
+
+
+@router.get("/{request_id}/pdf")
+def get_pdf(request_id: int, db: Session = Depends(get_db)):
+    request = db.query(ProcurementRequest).filter(ProcurementRequest.id == request_id).first()
+    if not request or not request.pdf_filename:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    return FileResponse(f"uploads/{request.pdf_filename}", media_type="application/pdf")
+
+
+@router.delete("/{request_id}/pdf", status_code=204)
+def delete_pdf(request_id: int, db: Session = Depends(get_db)):
+    request = db.query(ProcurementRequest).filter(ProcurementRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if request.pdf_filename:
+        filepath = f"uploads/{request.pdf_filename}"
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        request.pdf_filename = None
+        db.commit()
+    return None
+        

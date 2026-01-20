@@ -1,14 +1,15 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Upload, FileText, Loader2, X } from 'lucide-react';
 import { extractPdf } from '../api/client';
 import type { PdfExtractionResult } from '../types';
 
 interface PdfUploaderProps {
   onExtracted: (data: PdfExtractionResult) => void;
+  onFileChange?: (file: File | null) => void;
+  file: File | null;
 }
 
-export default function PdfUploader({ onExtracted }: PdfUploaderProps) {
-  const [file, setFile] = useState<File | null>(null);
+export default function PdfUploader({ onExtracted, onFileChange, file }: PdfUploaderProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -16,7 +17,7 @@ export default function PdfUploader({ onExtracted }: PdfUploaderProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile && selectedFile.type === 'application/pdf') {
-      setFile(selectedFile);
+      onFileChange?.(selectedFile);
       setError(null);
     } else {
       setError('Please select a PDF file');
@@ -32,10 +33,6 @@ export default function PdfUploader({ onExtracted }: PdfUploaderProps) {
     try {
       const result = await extractPdf(file);
       onExtracted(result);
-      setFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     } catch (err) {
       setError('Failed to extract PDF data. Please try again.');
       console.error('PDF extraction error:', err);
@@ -45,7 +42,7 @@ export default function PdfUploader({ onExtracted }: PdfUploaderProps) {
   };
 
   const clearFile = () => {
-    setFile(null);
+    onFileChange?.(null);
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -118,6 +115,14 @@ export default function PdfUploader({ onExtracted }: PdfUploaderProps) {
             </>
           )}
         </button>
+        {file && (
+          <embed
+            key={file.name + file.size}
+            src={URL.createObjectURL(file)}
+            type="application/pdf"
+            className="w-full h-80 mt-4 rounded-lg border border-gray-600"
+          />
+        )}
       </div>
     </div>
   );

@@ -7,6 +7,8 @@ import {
   getRequest,
   getCommodityGroups,
   classifyCommodity,
+  uploadPdf,
+  deletePdf,
 } from '../api/client';
 import type { OrderLine, CommodityGroup, PdfExtractionResult } from '../types';
 import OrderLineEditor from './OrderLineEditor';
@@ -27,6 +29,8 @@ export default function RequestForm({ editMode, requestId, onSuccess }: RequestF
   const [classifying, setClassifying] = useState(false);
   const [commodityGroups, setCommodityGroups] = useState<CommodityGroup[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [originalPdfFilename, setOriginalPdfFilename] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     requestor_name: '',
@@ -67,6 +71,17 @@ export default function RequestForm({ editMode, requestId, onSuccess }: RequestF
             stated_total_cost: request.stated_total_cost,
           });
           setOrderLines(request.order_lines);
+          
+          setOriginalPdfFilename(request.pdf_filename);
+          if (request.pdf_filename) {
+            fetch(`http://localhost:8000/api/requests/${requestId}/pdf`)
+              .then((res) => res.blob())
+              .then((blob) => {
+                const file = new File([blob], request.pdf_filename!, { type: 'application/pdf' });
+                setPdfFile(file);
+              })
+              .catch(console.error);
+          }
         })
         .catch((err) => {
           setError('Failed to load request');
@@ -154,7 +169,13 @@ export default function RequestForm({ editMode, requestId, onSuccess }: RequestF
       if (editMode && requestId) {
         await updateRequest(requestId, payload);
       } else {
-        await createRequest(payload);
+        const response = await createRequest(payload);
+        requestId = response.id;
+      }
+      if (originalPdfFilename && !pdfFile && requestId) {
+        await deletePdf(requestId);
+      } else if (pdfFile && requestId) {
+        await uploadPdf(requestId, pdfFile);
       }
 
       if (onSuccess) {
@@ -347,7 +368,11 @@ export default function RequestForm({ editMode, requestId, onSuccess }: RequestF
         </div>
 
         <div className="space-y-6">
-          <PdfUploader onExtracted={handlePdfExtracted} />
+          <PdfUploader 
+            onExtracted={handlePdfExtracted} 
+            onFileChange={setPdfFile}
+            file={pdfFile}
+          />
 
           <button
             type="submit"

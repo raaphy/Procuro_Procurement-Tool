@@ -25,7 +25,6 @@ class ProcurementRequest(Base):
     currency = Column(String, default="EUR")
     stated_total_cost = Column(Float, nullable=True)  # Total from the offer document
     status = Column(String, default=RequestStatus.OPEN.value)
-    pdf_data = Column(LargeBinary, nullable=True)  # Stored PDF file
     pdf_filename = Column(String, nullable=True)  # Original filename
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))

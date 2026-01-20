@@ -67,4 +67,18 @@ export async function getCommodityGroups(): Promise<CommodityGroup[]> {
   return response.data;
 }
 
+export async function uploadPdf(requestId: number, file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append('file', file);
+  await api.post(`/requests/${requestId}/pdf`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+}
+
+export async function deletePdf(requestId: number): Promise<void> {
+  await api.delete(`/requests/${requestId}/pdf`);
+}
+
 export default api;
