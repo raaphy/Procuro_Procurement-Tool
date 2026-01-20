@@ -9,9 +9,12 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DATABASE_URL=sqlite:////app/data/procuro.db
+      - UPLOAD_DIR=/app/uploads
     volumes:
       - procuro_data:/app/data
+      - procuro_uploads:/app/uploads
     restart: unless-stopped
 
 volumes:
   procuro_data:
+  procuro_uploads:

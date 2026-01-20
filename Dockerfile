@@ -21,8 +21,8 @@ RUN npm install && npm run build
 
 WORKDIR /app
 
-# Create data directory for SQLite
-RUN mkdir -p /app/data
+# Create data and uploads directories
+RUN mkdir -p /app/data /app/uploads
 
 EXPOSE 8000
 

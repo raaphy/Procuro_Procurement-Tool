@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from database.database import get_db
+from database.database import get_db, UPLOAD_DIR
 from backend.schemas import (
     ProcurementRequestCreate,
     ProcurementRequestUpdate,
@@ -158,9 +158,9 @@ def delete_request(request_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Request not found")
 
     if request.pdf_filename:
-        filepath = f"uploads/{request.pdf_filename}"
-        if os.path.exists(filepath):
-            os.remove(filepath)
+        filepath = UPLOAD_DIR / request.pdf_filename
+        if filepath.exists():
+            filepath.unlink()
 
     db.delete(request)
     db.commit()
@@ -178,9 +178,8 @@ async def upload_pdf(request_id:int, file: UploadFile = File(...), db: Session =
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
     try:
-        os.makedirs("uploads", exist_ok=True)
-        with open(f"uploads/{request_id}.pdf", "wb") as f:
-            f.write(file_bytes)
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        (UPLOAD_DIR / f"{request_id}.pdf").write_bytes(file_bytes)
         request.pdf_filename = f"{request_id}.pdf"
         db.commit()
         return {"message": "PDF uploaded successfully"}
@@ -193,7 +192,7 @@ def get_pdf(request_id: int, db: Session = Depends(get_db)):
     request = db.query(ProcurementRequest).filter(ProcurementRequest.id == request_id).first()
     if not request or not request.pdf_filename:
         raise HTTPException(status_code=404, detail="PDF not found")
-    return FileResponse(f"uploads/{request.pdf_filename}", media_type="application/pdf")
+    return FileResponse(UPLOAD_DIR / request.pdf_filename, media_type="application/pdf")
 
 
 @router.delete("/{request_id}/pdf", status_code=204)
@@ -202,9 +201,9 @@ def delete_pdf(request_id: int, db: Session = Depends(get_db)):
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
     if request.pdf_filename:
-        filepath = f"uploads/{request.pdf_filename}"
-        if os.path.exists(filepath):
-            os.remove(filepath)
+        filepath = UPLOAD_DIR / request.pdf_filename
+        if filepath.exists():
+            filepath.unlink()
         request.pdf_filename = None
         db.commit()
     return None
